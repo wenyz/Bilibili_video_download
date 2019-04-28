@@ -23,14 +23,15 @@ API:
 import requests, time, urllib.request, re
 from moviepy.editor import *
 import os, sys
-
+import socket
+socket.setdefaulttimeout(30)
 
 # 访问API地址
 def get_play_list(aid, cid, quality):
     url_api = 'https://api.bilibili.com/x/player/playurl?cid={}&avid={}&qn={}'.format(cid, aid, quality)
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
-        'Cookie': 'SESSDATA=b693f4f2%2C1558063359%2Cfc41fa41', # 登录B站后复制一下cookie中的SESSDATA字段,有效期1个月
+        'Cookie': 'SESSDATA=fdafcbb9%2C1557659689%2Cffce9941', # 登录B站后复制一下cookie中的SESSDATA字段,有效期1个月
         'Host': 'api.bilibili.com'
     }
     html = requests.get(url_api, headers=headers).json()
@@ -128,17 +129,38 @@ def down_video(video_list, title, start_url, page):
         ]
         urllib.request.install_opener(opener)
         # 创建文件夹存放下载的视频
-        if not os.path.exists(currentVideoPath):
-            os.makedirs(currentVideoPath)
+#        if not os.path.exists(currentVideoPath):
+#            os.makedirs(currentVideoPath)
         # 开始下载
+#        if len(video_list) > 1:
+#            urllib.request.urlretrieve(url=i, filename=os.path.join(currentVideoPath, r'{}-{}.flv'.format(title, num)),
+#                                       reporthook=Schedule_cmd)  # 写成mp4也行  title + '-' + num + '.flv'
+#        else:
+#            urllib.request.urlretrieve(url=i, filename=os.path.join(currentVideoPath, r'{}.flv'.format(title)),
+#                                       reporthook=Schedule_cmd)  # 写成mp4也行  title + '-' + num + '.flv'
         if len(video_list) > 1:
-            urllib.request.urlretrieve(url=i, filename=os.path.join(currentVideoPath, r'{}-{}.flv'.format(title, num)),
-                                       reporthook=Schedule_cmd)  # 写成mp4也行  title + '-' + num + '.flv'
+            refresh_video(url1=i, filename1=os.path.join(currentVideoPath, r'{}-{}.flv'.format(title, num)))  # 写成mp4也行  title + '-' + num + '.flv'
         else:
-            urllib.request.urlretrieve(url=i, filename=os.path.join(currentVideoPath, r'{}.flv'.format(title)),
-                                       reporthook=Schedule_cmd)  # 写成mp4也行  title + '-' + num + '.flv'
+            refresh_video(url1=i, filename1=os.path.join(currentVideoPath, r'{}.flv'.format(title)))  # 写成mp4也行  title + '-' + num + '.flv'
         num += 1
+        
 
+def refresh_video(url1,filename1):
+    try:
+        urllib.request.urlretrieve(url1,filename1)
+    except socket.timeout:
+        count = 1
+        while count <= 5:
+            try:
+                urllib.request.urlretrieve(url,image_name)                                                
+                break
+            except socket.timeout:
+                err_info = 'Reloading for %d time'%count if count == 1 else 'Reloading for %d times'%count
+                print(err_info)
+                count += 1
+        if count > 5:
+            print("downloading picture fialed!")
+            
 
 # 合并视频
 def combine_video(video_list, title):
