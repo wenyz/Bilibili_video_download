@@ -116,7 +116,7 @@ def down_video(video_list, title, start_url, page):
         opener = urllib.request.build_opener()
         # 请求头
         opener.addheaders = [
-            # ('Host', 'upos-hz-mirrorks3.acgvideo.com'),  #注意修改host,不用也行
+             ('Host', 'upos-hz-mirrorks3.acgvideo.com'),  #注意修改host,不用也行
             ('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:56.0) Gecko/20100101 Firefox/56.0'),
             ('Accept', '*/*'),
             ('Accept-Language', 'en-US,en;q=0.5'),
@@ -129,8 +129,8 @@ def down_video(video_list, title, start_url, page):
         ]
         urllib.request.install_opener(opener)
         # 创建文件夹存放下载的视频
-#        if not os.path.exists(currentVideoPath):
-#            os.makedirs(currentVideoPath)
+        if not os.path.exists(currentVideoPath):
+            os.makedirs(currentVideoPath)
         # 开始下载
 #        if len(video_list) > 1:
 #            urllib.request.urlretrieve(url=i, filename=os.path.join(currentVideoPath, r'{}-{}.flv'.format(title, num)),
@@ -147,6 +147,10 @@ def down_video(video_list, title, start_url, page):
 
 def refresh_video(url1,filename1):
     try:
+
+        if os.path.exists(filename1):
+            print("{}已经下载完毕！",filename1)
+            return
         urllib.request.urlretrieve(url1,filename1)
     except socket.timeout:
         count = 1
