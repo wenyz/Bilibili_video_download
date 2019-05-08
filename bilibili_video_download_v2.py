@@ -31,7 +31,7 @@ def get_play_list(aid, cid, quality):
     url_api = 'https://api.bilibili.com/x/player/playurl?cid={}&avid={}&qn={}'.format(cid, aid, quality)
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
-        'Cookie': 'SESSDATA=fdafcbb9%2C1557659689%2Cffce9941', # 登录B站后复制一下cookie中的SESSDATA字段,有效期1个月
+        'Cookie': 'SESSDATA=fa40c9ab%2C1559917290%2C0e4e5951', # 登录B站后复制一下cookie中的SESSDATA字段,有效期1个月
         'Host': 'api.bilibili.com'
     }
     html = requests.get(url_api, headers=headers).json()
@@ -152,7 +152,7 @@ def refresh_video(url1,filename1):
         count = 1
         while count <= 5:
             try:
-                urllib.request.urlretrieve(url,image_name)                                                
+                urllib.request.urlretrieve(url1,filename1)
                 break
             except socket.timeout:
                 err_info = 'Reloading for %d time'%count if count == 1 else 'Reloading for %d times'%count
@@ -195,6 +195,7 @@ def combine_video(video_list, title):
 
 if __name__ == '__main__':
     # 用户输入av号或者视频链接地址
+    #25755767 fa40c9ab%2C1559917290%2C0e4e5951
     print('*' * 30 + 'B站视频下载小助手' + '*' * 30)
     start = input('请输入您要下载的B站av号或者视频链接地址:')
     if start.isdigit() == True:
@@ -241,7 +242,7 @@ if __name__ == '__main__':
         video_list = get_play_list(aid, cid, quality)
         start_time = time.time()
         down_video(video_list, title, start_url, page)
-        combine_video(video_list, title)
+        #combine_video(video_list, title)
 
     # 如果是windows系统，下载完成后打开下载目录
     currentVideoPath = os.path.join(sys.path[0], 'bilibili_video')  # 当前目录作为下载目录
