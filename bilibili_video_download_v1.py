@@ -6,16 +6,15 @@ __author__ = 'Henry'
 
 '''
 项目: B站视频下载
-
 版本1: 加密API版,不需要加入cookie,直接即可下载1080p视频
-
 20190422 - 增加多P视频单独下载其中一集的功能
 '''
 
 import requests, time, hashlib, urllib.request, re, json
 from moviepy.editor import *
 import os, sys
-
+import socket
+socket.setdefaulttimeout(30)
 
 # 访问API地址
 def get_play_list(start_url, cid, quality):
@@ -31,7 +30,11 @@ def get_play_list(start_url, cid, quality):
     # print(url_api)
     html = requests.get(url_api, headers=headers).json()
     # print(json.dumps(html))
-    video_list = [html['durl'][0]['url']]
+    #video_list = [html['durl'][0]['url']]
+    video_list = []
+    for i in html['durl']:
+        video_list.append(i['url'])
+    print(video_list)
     # print(video_list)
     return video_list
 
@@ -110,7 +113,7 @@ def down_video(video_list, title, start_url, page):
         opener = urllib.request.build_opener()
         # 请求头
         opener.addheaders = [
-            # ('Host', 'upos-hz-mirrorks3.acgvideo.com'),  #注意修改host,不用也行
+             ('Host', 'upos-hz-mirrorks3.acgvideo.com'),  #注意修改host,不用也行
             ('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:56.0) Gecko/20100101 Firefox/56.0'),
             ('Accept', '*/*'),
             ('Accept-Language', 'en-US,en;q=0.5'),
@@ -125,11 +128,37 @@ def down_video(video_list, title, start_url, page):
         if not os.path.exists(currentVideoPath):
             os.makedirs(currentVideoPath)
         # 开始下载
+#        if len(video_list) > 1:
+#            urllib.request.urlretrieve(url=i, filename=os.path.join(currentVideoPath, r'{}-{}.flv'.format(title, num)),reporthook=Schedule_cmd)  # 写成mp4也行  title + '-' + num + '.flv'
+#        else:
+#            urllib.request.urlretrieve(url=i, filename=os.path.join(currentVideoPath, r'{}.flv'.format(title)),reporthook=Schedule_cmd)  # 写成mp4也行  title + '-' + num + '.flv'
+#        num += 1
+
         if len(video_list) > 1:
-            urllib.request.urlretrieve(url=i, filename=os.path.join(currentVideoPath, r'{}-{}.flv'.format(title, num)),reporthook=Schedule_cmd)  # 写成mp4也行  title + '-' + num + '.flv'
+            refresh_video(url1=i, filename1=os.path.join(currentVideoPath, r'{}-{}.flv'.format(title, num)))  # 写成mp4也行  title + '-' + num + '.flv'
         else:
-            urllib.request.urlretrieve(url=i, filename=os.path.join(currentVideoPath, r'{}.flv'.format(title)),reporthook=Schedule_cmd)  # 写成mp4也行  title + '-' + num + '.flv'
+            refresh_video(url1=i, filename1=os.path.join(currentVideoPath, r'{}.flv'.format(title)))  # 写成mp4也行  title + '-' + num + '.flv'
         num += 1
+
+def refresh_video(url1,filename1):
+    try:
+
+        if os.path.exists(filename1):
+            print("{}已经下载完毕！",filename1)
+            return
+        urllib.request.urlretrieve(url1,filename1)
+    except socket.timeout:
+        count = 1
+        while count <= 5:
+            try:
+                urllib.request.urlretrieve(url1,filename1)
+                break
+            except socket.timeout:
+                err_info = 'Reloading for %d time'%count if count == 1 else 'Reloading for %d times'%count
+                print(err_info)
+                count += 1
+        if count > 5:
+            print("downloading picture fialed!")
 
 # 合并视频
 def combine_video(video_list, title):
@@ -184,6 +213,8 @@ if __name__ == '__main__':
     }
     html = requests.get(start_url, headers=headers).json()
     data = html['data']
+    print(data)
+    video_title=data["title"].replace(" ","_")
     cid_list = []
     if '?p=' in start:
         # 单独下载分P视频中的一集
@@ -196,6 +227,8 @@ if __name__ == '__main__':
     for item in cid_list:
         cid = str(item['cid'])
         title = item['part']
+        if not title:
+            title = video_title
         title = re.sub(r'[\/\\:*?"<>|]', '', title)  # 替换为空的
         print('[下载视频的cid]:' + cid)
         print('[下载视频的标题]:' + title)
@@ -204,7 +237,7 @@ if __name__ == '__main__':
         video_list = get_play_list(start_url, cid, quality)
         start_time = time.time()
         down_video(video_list, title, start_url, page)
-        combine_video(video_list, title)
+        #combine_video(video_list, title)
 
     # 如果是windows系统，下载完成后打开下载目录
     currentVideoPath = os.path.join(sys.path[0], 'bilibili_video')  # 当前目录作为下载目录
