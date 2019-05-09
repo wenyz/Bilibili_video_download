@@ -135,30 +135,54 @@ def down_video(video_list, title, start_url, page):
 #        num += 1
 
         if len(video_list) > 1:
-            refresh_video(url1=i, filename1=os.path.join(currentVideoPath, r'{}-{}.flv'.format(title, num)))  # 写成mp4也行  title + '-' + num + '.flv'
+            refresh_video(url1=i, filename1=os.path.join(currentVideoPath, r'{}-{}.flv'.format(title, num)),Schedule_cmd1=None)  # 写成mp4也行  title + '-' + num + '.flv'
         else:
-            refresh_video(url1=i, filename1=os.path.join(currentVideoPath, r'{}.flv'.format(title)))  # 写成mp4也行  title + '-' + num + '.flv'
+            refresh_video(url1=i, filename1=os.path.join(currentVideoPath, r'{}.flv'.format(title)),Schedule_cmd1=None)  # 写成mp4也行  title + '-' + num + '.flv'
         num += 1
 
-def refresh_video(url1,filename1):
+def refresh_video(url1,filename1,Schedule_cmd1):
     try:
 
         if os.path.exists(filename1):
             print("{}已经下载完毕！",filename1)
             return
-        urllib.request.urlretrieve(url1,filename1)
+        urllib.request.urlretrieve(url=url1, filename=filename1,reporthook=Schedule_cmd1)
+        #urllib.request.urlretrieve(url1,filename1)
     except socket.timeout:
         count = 1
         while count <= 5:
             try:
-                urllib.request.urlretrieve(url1,filename1)
+                urllib.request.urlretrieve(url=url1, filename=filename1,reporthook=Schedule_cmd1)
+                #urllib.request.urlretrieve(url1,filename1)
                 break
             except socket.timeout:
                 err_info = 'Reloading for %d time'%count if count == 1 else 'Reloading for %d times'%count
                 print(err_info)
                 count += 1
+            except urllib.error.URLError as e:
+                err_info = 'URLError for %d time'%count if count == 1 else 'Reloading for %d times'%count
+                print(err_info)
+                count += 1
         if count > 5:
             print("downloading picture fialed!")
+    except urllib.error.URLError as e:
+        count = 1
+        while count <= 5:
+            try:
+                urllib.request.urlretrieve(url=url1, filename=filename1,reporthook=Schedule_cmd1)
+                #urllib.request.urlretrieve(url1,filename1)
+                break
+            except socket.timeout:
+                err_info = 'Reloading for %d time'%count if count == 1 else 'Reloading for %d times'%count
+                print(err_info)
+                count += 1
+            except urllib.error.URLError as e:
+                err_info = 'URLError for %d time'%count if count == 1 else 'Reloading for %d times'%count
+                print(err_info)
+                count += 1
+        if count > 5:
+            print("downloading picture fialed!")
+        
 
 # 合并视频
 def combine_video(video_list, title):
