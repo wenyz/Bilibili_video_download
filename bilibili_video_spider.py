@@ -9,7 +9,12 @@ import os, sys
 import socket
 socket.setdefaulttimeout(30)
 import threading,time
+from multiprocessing import Process, Queue,cpu_count
 
+_DOWNLOAD_THERAD_NUM = 5
+_CONVERT_PROCESS_NUM = cpu_count()-1
+_DOWNLOAD_HOME = "G:\\downloadtest"
+_DIRECTORY_CREATE_LOCK = threading.Lock()
 
 class AV:
     
@@ -32,7 +37,7 @@ class AV:
         cid_list = data['pages']
         clip_list = []
         for info in cid_list:
-            self.pages.append(Page(str(info['cid']),info['page'],info['part']))
+            self.pages.append(Page(str(info['cid']),info['page'],info['part'],self))
             
         for page in self.pages:
             clip_list = get_play_list(self.base_url +self.avid + '?p='+ str(page.num),page.cid,80)
@@ -41,32 +46,60 @@ class AV:
             index = 0
             for clip in clip_list:
                 index += 1
-                clips.append(Clip(index,clip))
+                clips.append(Clip(index,clip,page))
             page.clips = clips
-            
-        
-        qgc = 25
-        ggc_threads = []
-        
-        for i in range(qgc):
-            tt = threading.Thread(target=down_video2,args=(self.pages[1].clips[i].url,i))
-            tt.start()
-            ggc_threads.append(tt)
-        
-        for te in ggc_threads:
-            te.join()
-        
-        print("="*90)
-        
-        #down_video2(self.pages[0].clips[0].url,0)
-        #down_video2(self.pages[1].clips[1].url,1)
-        #down_video2(self.pages[2].clips[2].url,2)
-            
-        
-    def start_download(self):
 
-        print("start download")
+
+class DownloadRawVideo(threading.Thread):
+    def __init__(self,clips_queue):
+        threading.Thread.__init__(self)
+        self.clips_queue = clips_queue
         
+    def run(self):
+        while True:
+            if not self.clips_queue.empty():
+                clip = self.clips_queue.get()
+                self.down_raw_data(clip)
+
+        
+    def down_raw_data(self,clip):
+        opener = urllib.request.build_opener()
+        opener.addheaders = [
+            ('Host', 'upos-hz-mirrorks3.acgvideo.com'),  #注意修改host,不用也行
+            ('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:56.0) Gecko/20100101 Firefox/56.0'),
+            ('Accept', '*/*'),
+            ('Accept-Language', 'en-US,en;q=0.5'),
+            ('Accept-Encoding', 'gzip, deflate, br'),
+            
+            ('Range', 'bytes=0-'),  # Range 的值要为 bytes=0- 才能下载完整视频
+            ('Referer',  AV.base_url),  # 注意修改referer,必须要加的!
+            ('Origin', 'https://www.bilibili.com'),
+            ('Connection', 'keep-alive'),
+        ]
+        urllib.request.install_opener(opener)
+        
+        currentVideoPath = os.path.join(_DOWNLOAD_HOME, clip.page.av.title,clip.page.title)
+        if not os.path.exists(currentVideoPath):
+            #防止多线程创建重复文件夹报错
+            _DIRECTORY_CREATE_LOCK.acquire()
+            #double check lock
+            if not os.path.exists(currentVideoPath):
+                os.makedirs(currentVideoPath)
+            _DIRECTORY_CREATE_LOCK.release()
+            
+        download_file_name = os.path.join(currentVideoPath, r'{}-{}.flv'.format(clip.page.title, clip.num))
+        if os.path.exists(download_file_name):
+            print("{}已经下载完毕！",download_file_name)
+            return
+            
+        refresh_video(raw_url=clip.url, raw_file_name=download_file_name,raw_cmd=None)
+        clip.status = 1
+        
+        for clip in page.clips:
+            if clip.status == 0:
+                return
+            
+        clip.page.status = 1
         
 # 访问API地址
 def get_play_list(start_url, cid, quality):
@@ -89,110 +122,27 @@ def get_play_list(start_url, cid, quality):
     return video_list
 
 
-def down_video2(video_url,num):
-    currentVideoPath = os.path.join(sys.path[0], 'bilibili_video', "ttttttt")
-    opener = urllib.request.build_opener()
-    opener.addheaders = [
-        ('Host', 'upos-hz-mirrorks3.acgvideo.com'),  #注意修改host,不用也行
-        ('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:56.0) Gecko/20100101 Firefox/56.0'),
-        ('Accept', '*/*'),
-        ('Accept-Language', 'en-US,en;q=0.5'),
-        ('Accept-Encoding', 'gzip, deflate, br'),
-        ('Range', 'bytes=0-'),  # Range 的值要为 bytes=0- 才能下载完整视频
-        ('Referer',  AV.base_url),  # 注意修改referer,必须要加的!
-        ('Origin', 'https://www.bilibili.com'),
-        ('Connection', 'keep-alive'),
-    ]
-    urllib.request.install_opener(opener)
-    
-    if not os.path.exists(currentVideoPath):
-        os.makedirs(currentVideoPath)
-    
-    
-
-    refresh_video(url1=video_url, filename1=os.path.join(currentVideoPath, r'{}-{}.flv'.format("qwer", num)),Schedule_cmd1=None)
-
-#  下载视频
-def down_video(video_list, title, start_url, page):
-    num = 1
-    print('[正在下载P{}段视频,请稍等...]:'.format(page) + title)
-    currentVideoPath = os.path.join(sys.path[0], 'bilibili_video', title)  # 当前目录作为下载目录
-    for i in video_list:
-        opener = urllib.request.build_opener()
-        # 请求头
-        opener.addheaders = [
-             ('Host', 'upos-hz-mirrorks3.acgvideo.com'),  #注意修改host,不用也行
-            ('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:56.0) Gecko/20100101 Firefox/56.0'),
-            ('Accept', '*/*'),
-            ('Accept-Language', 'en-US,en;q=0.5'),
-            ('Accept-Encoding', 'gzip, deflate, br'),
-            ('Range', 'bytes=0-'),  # Range 的值要为 bytes=0- 才能下载完整视频
-            ('Referer', start_url),  # 注意修改referer,必须要加的!
-            ('Origin', 'https://www.bilibili.com'),
-            ('Connection', 'keep-alive'),
-        ]
-        urllib.request.install_opener(opener)
-        # 创建文件夹存放下载的视频
-        if not os.path.exists(currentVideoPath):
-            os.makedirs(currentVideoPath)
-        # 开始下载
-#        if len(video_list) > 1:
-#            urllib.request.urlretrieve(url=i, filename=os.path.join(currentVideoPath, r'{}-{}.flv'.format(title, num)),reporthook=Schedule_cmd)  # 写成mp4也行  title + '-' + num + '.flv'
-#        else:
-#            urllib.request.urlretrieve(url=i, filename=os.path.join(currentVideoPath, r'{}.flv'.format(title)),reporthook=Schedule_cmd)  # 写成mp4也行  title + '-' + num + '.flv'
-#        num += 1
-
-        if len(video_list) > 1:
-            refresh_video(url1=i, filename1=os.path.join(currentVideoPath, r'{}-{}.flv'.format(title, num)),Schedule_cmd1=None)  # 写成mp4也行  title + '-' + num + '.flv'
-        else:
-            refresh_video(url1=i, filename1=os.path.join(currentVideoPath, r'{}.flv'.format(title)),Schedule_cmd1=None)  # 写成mp4也行  title + '-' + num + '.flv'
-        num += 1
-
-def refresh_video(url1,filename1,Schedule_cmd1):
-    try:
-
-        if os.path.exists(filename1):
-            print("{}已经下载完毕！",filename1)
-            return
-        urllib.request.urlretrieve(url=url1, filename=filename1,reporthook=Schedule_cmd1)
-        #urllib.request.urlretrieve(url1,filename1)
-    except socket.timeout:
-        count = 1
-        while count <= 5:
-            try:
-                urllib.request.urlretrieve(url=url1, filename=filename1,reporthook=Schedule_cmd1)
-                #urllib.request.urlretrieve(url1,filename1)
-                break
-            except socket.timeout:
-                err_info = 'Reloading for %d time'%count if count == 1 else 'Reloading for %d times'%count
-                print(err_info)
-                count += 1
-            except urllib.error.URLError as e:
-                err_info = 'URLError for %d time'%count if count == 1 else 'Reloading for %d times'%count
-                print(err_info)
-                count += 1
-        if count > 5:
-            print("downloading picture fialed!")
-    except urllib.error.URLError as e:
-        count = 1
-        while count <= 5:
-            try:
-                urllib.request.urlretrieve(url=url1, filename=filename1,reporthook=Schedule_cmd1)
-                #urllib.request.urlretrieve(url1,filename1)
-                break
-            except socket.timeout:
-                err_info = 'Reloading for %d time'%count if count == 1 else 'Reloading for %d times'%count
-                print(err_info)
-                count += 1
-            except urllib.error.URLError as e:
-                err_info = 'URLError for %d time'%count if count == 1 else 'Reloading for %d times'%count
-                print(err_info)
-                count += 1
-        if count > 5:
-            print("downloading picture fialed!")
+def refresh_video(raw_url,raw_file_name,raw_cmd):
+    sleep_time = [2,4,30,60,300,3600,20000]
+    sleep_index = -1
+    while True:
+        sleep_index = (sleep_index+1)%7
+        try:
+            urllib.request.urlretrieve(url=raw_url, filename=raw_file_name,reporthook=raw_cmd)
+            break
+        except socket.timeout:
+            print("socket timeout occured!")
+            time.sleep(sleep_time[sleep_index])
+        except urllib.error.URLError as e:
+            print("urllib.error.URLError : ",e.reason)
+            time.sleep(sleep_time[sleep_index])
+        except Exception as e:
+            print("unhandled Exception : ",e.reason)
+            time.sleep(sleep_time[sleep_index])
 
 class Page:
-    def __init__(self,cid,num,title,url=None):
+    def __init__(self,cid,num,title,av,url=None):
+        self.av = av
         self.cid = cid
         self.url = url
         self.num = num
@@ -201,10 +151,30 @@ class Page:
         self.clips = []
         
 class Clip:
-    def __init__(self,num,url):
+    def __init__(self,num,url,page):
         self.num = num
         self.url = url
         self.status = 0
+        self.page = page
+        
+def deal_av(avid,quality):
+    current = AV('25755767',80)
+    clips_queue = Queue(1000)
+    convert_queue = Queue(1000)
+    for page in current.pages:
+        for clip in page.clips:
+            clips_queue.put(clip)
+    
+    threads = []
+    for i in range(_DOWNLOAD_THERAD_NUM):
+        thread = DownloadRawVideo(clips_queue)
+        thread.start()
+        threads.append(thread)
+        
+    [t.join() for t in threads]
+    clips_queue.join()
+        
+
 
 if __name__ == '__main__':
-    av1 = AV('25755767',80)
+    deal_av('25755767',80)
