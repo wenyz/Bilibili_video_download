@@ -16,21 +16,32 @@ def test(val):
     print(val)
     
 def add_data():
+    
+    
+    
     for i in range(100):
         #time.sleep(1)
         #global raw_datas
         bbb.map(test,[i])
         #raw_datas.append(i*5)
     
+
+
+def aaa():
+    bbb()
     
+    def bbb():
+        print("bbbb")
     
 if __name__ == '__main__':
     
-    raw_datas=[1,2,3,4,5,6,7]
+    #raw_datas=[1,2,3,4,5,6,7]
     
-    t1 = threading.Thread(target=add_data,args=())
-    t1.start()
+    #t1 = threading.Thread(target=add_data,args=())
+    #t1.start()
     
-    t1.join()
+    #t1.join()
     
     #bbb.map(test,raw_datas)
+    
+    aaa()

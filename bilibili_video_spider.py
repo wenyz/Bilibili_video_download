@@ -9,12 +9,16 @@ import os, sys
 import socket
 socket.setdefaulttimeout(30)
 import threading,time
-from multiprocessing import Process, Queue,cpu_count
+from multiprocessing import Process,cpu_count
+from queue import Queue
+from concurrent.futures import  ProcessPoolExecutor
 
-_DOWNLOAD_THERAD_NUM = 5
+_DOWNLOAD_THERAD_NUM = 20
 _CONVERT_PROCESS_NUM = cpu_count()-1
 _DOWNLOAD_HOME = "G:\\downloadtest"
 _DIRECTORY_CREATE_LOCK = threading.Lock()
+_CONVERT_PROCESS_EXECUTOR = ProcessPoolExecutor(_CONVERT_PROCESS_NUM)
+#_STATUS_LOCK = threading.Lock()
 
 class AV:
     
@@ -60,6 +64,7 @@ class DownloadRawVideo(threading.Thread):
             if not self.clips_queue.empty():
                 clip = self.clips_queue.get()
                 self.down_raw_data(clip)
+                self.clips_queue.task_done()
 
         
     def down_raw_data(self,clip):
@@ -81,11 +86,11 @@ class DownloadRawVideo(threading.Thread):
         currentVideoPath = os.path.join(_DOWNLOAD_HOME, clip.page.av.title,clip.page.title)
         if not os.path.exists(currentVideoPath):
             #防止多线程创建重复文件夹报错
-            _DIRECTORY_CREATE_LOCK.acquire()
-            #double check lock
-            if not os.path.exists(currentVideoPath):
-                os.makedirs(currentVideoPath)
-            _DIRECTORY_CREATE_LOCK.release()
+            if _DIRECTORY_CREATE_LOCK.acquire():
+                #double check lock
+                if not os.path.exists(currentVideoPath):
+                    os.makedirs(currentVideoPath)
+                _DIRECTORY_CREATE_LOCK.release()
             
         download_file_name = os.path.join(currentVideoPath, r'{}-{}.flv'.format(clip.page.title, clip.num))
         if os.path.exists(download_file_name):
@@ -93,13 +98,47 @@ class DownloadRawVideo(threading.Thread):
             return
             
         refresh_video(raw_url=clip.url, raw_file_name=download_file_name,raw_cmd=None)
-        clip.status = 1
+#        if _STATUS_LOCK.acquire():
+#            clip.status = 1        
+#            tmp_status = 0
+#            for cc in clip.page.clips:
+#                #print('{}-{}'.format(cc.num,cc.status))
+#                if cc.status == 0:
+#                    tmp_status = 1
+#            
+#            #print('{}-{} is download'.format(clip.page.title,clip.num))
+#            if tmp_status == 1:
+#                _STATUS_LOCK.release()
+#                return
+#            
+#            print('{} finished'.format(clip.page.title))
+#            clip.page.status = 1
+#            _STATUS_LOCK.release()
         
-        for clip in page.clips:
-            if clip.status == 0:
-                return
+#        total = len(clip.page.clips)
+#        tmp = 0
+#        for file in currentVideoPath:
+#            if not os.path.getsize(file)==0:
+#                tmp = tmp+1
+#                
+#        
+#        print('total = {},now is {}'.format(total,tmp))
+        
             
-        clip.page.status = 1
+        
+        
+def convert_video(page):
+    currentVideoPath = os.path.join(_DOWNLOAD_HOME, page.av.title,page.title)
+    
+    L = []
+    root_dir = currentVideoPath
+    inputStr = "concat:"
+    for file in sorted(os.listdir(root_dir),key=lambda x:int(x[x.rindex("-") + 1:x.rindex(".")])):
+        print(file)
+        if os.path.splitext(file)[1] == '.flv':
+            filePath = os.path.join(root_dir,file)
+            L.append(filePath)
+    print(inputStr+"|".join(L)) 
         
 # 访问API地址
 def get_play_list(start_url, cid, quality):
@@ -156,11 +195,11 @@ class Clip:
         self.url = url
         self.status = 0
         self.page = page
-        
+
 def deal_av(avid,quality):
-    current = AV('25755767',80)
-    clips_queue = Queue(1000)
-    convert_queue = Queue(1000)
+    current = AV(avid,quality)
+    clips_queue = Queue(maxsize=0)
+    convert_queue =Queue(maxsize=0)
     for page in current.pages:
         for clip in page.clips:
             clips_queue.put(clip)
@@ -173,6 +212,11 @@ def deal_av(avid,quality):
         
     [t.join() for t in threads]
     clips_queue.join()
+    print("av download finish")
+    
+    for page in current.pages:
+        _CONVERT_PROCESS_EXECUTOR.map(target=convert_video,args=[page])
+    
         
 
 
