@@ -58,6 +58,7 @@ class DownloadRawVideo(threading.Thread):
     def __init__(self,clips_queue):
         threading.Thread.__init__(self)
         self.clips_queue = clips_queue
+        self.isDaemon = True
         
     def run(self):
         while True:
@@ -70,14 +71,13 @@ class DownloadRawVideo(threading.Thread):
     def down_raw_data(self,clip):
         opener = urllib.request.build_opener()
         opener.addheaders = [
-            ('Host', 'upos-hz-mirrorks3.acgvideo.com'),  #注意修改host,不用也行
+            ('Host', 'upos-hz-mirrorks3.acgvideo.com'),  #代理是必要的，不然很容易就被拒绝访问
             ('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:56.0) Gecko/20100101 Firefox/56.0'),
             ('Accept', '*/*'),
             ('Accept-Language', 'en-US,en;q=0.5'),
             ('Accept-Encoding', 'gzip, deflate, br'),
-            
-            ('Range', 'bytes=0-'),  # Range 的值要为 bytes=0- 才能下载完整视频
-            ('Referer',  AV.base_url),  # 注意修改referer,必须要加的!
+            ('Range', 'bytes=0-'),
+            ('Referer',  AV.base_url),
             ('Origin', 'https://www.bilibili.com'),
             ('Connection', 'keep-alive'),
         ]
@@ -94,11 +94,10 @@ class DownloadRawVideo(threading.Thread):
             
         download_file_name = os.path.join(currentVideoPath, r'{}-{}.flv'.format(clip.page.title, clip.num))
         if os.path.exists(download_file_name):
-            #print("{}已经下载完毕！",download_file_name) 
+            print("{}已经下载完毕！",download_file_name) 
             return
             
         download_video(raw_url=clip.url, raw_file_name=download_file_name,raw_cmd=None)
-
         
 def convert_video(page):
     print('convert_video executed')
@@ -109,12 +108,9 @@ def convert_video(page):
     
     for file in sorted(os.listdir(root_dir),key=lambda x:int(x[x.rindex("-") + 1:x.rindex(".")])):
         if os.path.splitext(file)[1] == '.flv':
-            filePath = os.path.join(root_dir,file)
-            L.append("file '{}'".format(filePath))
+            L.append("file '{}'".format(os.path.join(root_dir,file)))
             
     tmp_file_path = os.path.join(root_dir,'tmp.txt')
-    if os.path.exists(tmp_file_path):
-        os.remove(tmp_file_path)
     tmp_file =  open(tmp_file_path,'w')
     
     for strs in L:
@@ -122,7 +118,6 @@ def convert_video(page):
     tmp_file.close()
     
     output = os.path.join(os.path.join(_DOWNLOAD_HOME, page.av.title),page.title + '.flv')
-    print(output)
     
     ff = ffmpy3.FFmpeg(
             inputs={tmp_file_path:'-f concat -safe 0'},
@@ -145,10 +140,9 @@ def get_play_list(start_url, cid, quality):
         'Referer': AV.base_url,  # 注意加上referer
         'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'
     }
-    # print(url_api)
+
     html = requests.get(url_api, headers=headers).json()
-    # print(json.dumps(html))
-    #video_list = [html['durl'][0]['url']]
+
     video_list = []
     for i in html['durl']:
         video_list.append(i['url'])
