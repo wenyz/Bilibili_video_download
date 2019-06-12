@@ -8,6 +8,8 @@ from multiprocessing import Process, Queue,cpu_count
 import time
 import threading
 
+from queue import Queue
+
 class test:
     
     def __init__(self,a,b,c):
@@ -20,6 +22,10 @@ class test:
             ooos.append(Ooos(self))
         
         self.ooos = ooos
+        
+    def print_self(self):
+        for sss in self.ooos:
+            print('self print {}'.format(sss.status))
 
 class Ooos:
     
@@ -32,7 +38,8 @@ def update(ooos):
     print('update ooos status')
     ooos.status = 1
     for eee in ooos.test.ooos:
-        print(eee.status)        
+        print(eee.status) 
+    print('='*70)
 
 class update_thread(threading.Thread):
     
@@ -53,10 +60,12 @@ class keep_print(threading.Thread):
     def __init__(self,test):
         threading.Thread.__init__(self)
         self.test = test
+        self.isDaemon = True
         
     def run(self):
         while True:
             time.sleep(6)
+            #self.test.print_self()
             for sss in self.test.ooos:
                 print('keep print {}'.format(sss.status))
 
@@ -80,7 +89,7 @@ if __name__ == '__main__':
         threads.append(tt)
         
     [ts.join() for ts in threads]
-    gg.join()
+    #gg.join()
     
     qqq.join()
     
