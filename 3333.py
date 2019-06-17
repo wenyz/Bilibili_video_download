@@ -8,6 +8,8 @@ import os,sys
 from moviepy.editor import *
 import ffmpy3
 from tempfile import NamedTemporaryFile
+import configparser
+
 
 if __name__ == '__main__':
     #currentVideoPath = os.path.join(sys.path[0], 'bilibili_video', "01_学习的要义","01_课题介绍Introduction-5.flv")
@@ -39,18 +41,21 @@ if __name__ == '__main__':
 #    print(inputStr+"|".join(L))
     
     
-    f1= open('tmp.txt','w')
-    f1.write("file 'G:\downloadtest\01_课题介绍Introduction-3.flv'\n")
-    f1.write("file 'G:\downloadtest\01_课题介绍Introduction-4.flv'\n")
-    f1.close()
-
-    print(os.path.abspath(f1))
-    ff = ffmpy3.FFmpeg(
-            inputs={os.path.abspath(f1):'-f concat -safe 0'},
-            outputs = {'G:\\downloadtest\\01_课题介绍Introduction.flv':'-c copy'}
-            )
-    
+#    f1= open('tmp.txt','w')
+#    f1.write("file 'G:\downloadtest\01_课题介绍Introduction-3.flv'\n")
+#    f1.write("file 'G:\downloadtest\01_课题介绍Introduction-4.flv'\n")
+#    f1.close()
+#
+#    print(os.path.abspath(f1))
+#    ff = ffmpy3.FFmpeg(
+#            inputs={os.path.abspath(f1):'-f concat -safe 0'},
+#            outputs = {'G:\\downloadtest\\01_课题介绍Introduction.flv':'-c copy'}
+#            )
+#    
     #ff.run()
 
-    print(ff.cmd)
-    
+#    print(ff.cmd)
+#    
+    config = configparser.ConfigParser()
+    config.read("./config.ini")
+    print("> config sections : %s"%config.sections())

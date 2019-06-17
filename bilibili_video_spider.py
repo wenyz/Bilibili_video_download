@@ -13,6 +13,8 @@ from multiprocessing import Process,cpu_count
 from queue import Queue
 from concurrent.futures import  ProcessPoolExecutor
 
+import configparser
+
 import ffmpy3
 
 _DOWNLOAD_THERAD_NUM = 5
@@ -20,6 +22,8 @@ _CONVERT_PROCESS_NUM = cpu_count()-1
 _DOWNLOAD_HOME = "G:\\downloadtest"
 _DIRECTORY_CREATE_LOCK = threading.Lock()
 _CONVERT_PROCESS_EXECUTOR = ProcessPoolExecutor(_CONVERT_PROCESS_NUM)
+
+config = configpaser.ConfigParser()
 
 class AV:
     
